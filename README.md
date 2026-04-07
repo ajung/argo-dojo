@@ -41,7 +41,7 @@ Jede Session ist als eigene Markdown-Datei dokumentiert mit vollständigen Schri
 
 ### [Session 3: Helm Charts & Sync-Mechanismen](SESSION3.md)
 **Ziel:** Fortgeschrittene Argo CD Features
-- Helm Integration (SonarQube)
+- Helm Integration (Grafana)
 - Sync Waves für Deployment-Reihenfolge
 - Sync Hooks (PreSync/PostSync)
 - GitOps mit externen Charts
@@ -97,8 +97,7 @@ argo-dojo/
 ├── app/                         # Session 2: Demo-App
 │   └── deployment.yaml
 │
-├── sonarqube/                   # Session 3: Helm Integration
-│   ├── namespace.yaml
+├── grafana/                     # Session 3: Helm Integration
 │   ├── values.yaml
 │   └── application.yaml
 │

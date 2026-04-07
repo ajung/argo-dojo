@@ -1,22 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: sonarqube
+  name: grafana
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: default
 
-  # Multi-Source Setup: Chart von Helm Repo + Values aus Git Repo
+  # Multi-Source: Helm Chart + Values aus Git
   sources:
-    - repoURL: https://SonarSource.github.io/helm-chart-sonarqube
-      chart: sonarqube
-      targetRevision: 10.6.0+3033
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: grafana
+      targetRevision: 8.5.1
       helm:
-        releaseName: sonarqube
+        releaseName: grafana
         valueFiles:
-          - $values/sonarqube/values.yaml
+          - $values/grafana/values.yaml
 
     - repoURL: https://github.com/ajung/argo-dojo.git
       targetRevision: HEAD
@@ -24,7 +22,7 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: sonarqube
+    namespace: grafana
 
   syncPolicy:
     automated:
@@ -33,9 +31,9 @@ spec:
     syncOptions:
       - CreateNamespace=true
     retry:
-      limit: 5
+      limit: 3
       backoff:
         duration: 5s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 1m
 

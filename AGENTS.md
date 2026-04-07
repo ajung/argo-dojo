@@ -5,8 +5,12 @@
 - Fokus ist Session-Setup und Lernfluss, nicht ein produktionsreifes Multi-Service-System.
 
 ## Repo-Karte (entscheidend für Agenten)
-- `README.md`: enthält den vollständigen Betriebsablauf (Minikube/Podman, Argo CD Installation, Troubleshooting).
-- `app/deployment.yaml`: einzige deklarative App-Quelle (Deployment + Service `demo-app`).
+- `README.md`: Übersicht mit Links zu allen Sessions.
+- `SESSION1.md` / `SESSION2.md` / `SESSION3.md`: Vollständige Session-Dokumentationen.
+- `app/deployment.yaml`: Session 2 Demo-App (Deployment + Service `demo-app`).
+- `grafana/`: Session 3 Helm-Integration (values.yaml + application.yaml für Grafana Chart, kein DB nötig).
+- `sync-waves-demo/`: Session 3 Sync-Waves-Beispiele (wave-0 bis wave-3, zeigt Deployment-Reihenfolge).
+- `hooks-demo/`: Session 3 Sync-Hooks-Beispiele (PreSync/PostSync Jobs).
 - Es gibt aktuell **keine** Build-, Test- oder CI-Dateien im Repo; Änderungen sind primär YAML/GitOps-bezogen.
 
 ## Big Picture Architektur

@@ -6,26 +6,23 @@ Helm Charts mit Argo CD verwalten, eigene Values aus Git nutzen und fortgeschrit
 
 ## Was ist neu?
 
-- **Helm-Integration**: Externe Charts (SonarQube) mit lokalen Values kombinieren
+- **Helm-Integration**: Externes Chart (Grafana) mit lokalen Values kombinieren
 - **Sync Waves**: Deployment-Reihenfolge deklarativ steuern (ConfigMap → Secret → App → Service)
 - **Sync Hooks**: Pre/Post-Deployment-Jobs (Backups, Tests)
-- **Multi-Component Apps**: Realistische Deployment-Szenarien
 
-## Warum SonarQube?
+## Warum Grafana?
 
-SonarQube ist ein realistisches Beispiel mit mehreren Komponenten:
-- Eigene Datenbank (PostgreSQL)
-- Stateful-Optionen (für spätere Sessions)
-- Web-UI für sofortige Verifikation
-- Offizielles Helm Chart von SonarSource
+Grafana ist das ideale Dojo-Beispiel:
+- Kein PostgreSQL oder sonstige DB nötig (embedded SQLite)
+- Leichtgewichtig (~200 MB RAM)
+- Web-UI sofort sichtbar und interaktiv
+- Offizielles, stabiles Helm Chart
+- Viele sinnvolle Values zum Demonstrieren (Datasources, Dashboards, Auth)
 
-## Voraussetzung: Mehr Ressourcen
-
-SonarQube braucht mehr RAM als die Demo-App aus Session 2:
+## Voraussetzung
 
 ```powershell
-minikube delete
-minikube start --driver=podman --memory=6144 --cpus=4
+minikube start --driver=podman --memory=4096 --cpus=2
 ```
 
 ## Repo-Struktur (erweitert)
@@ -34,10 +31,9 @@ minikube start --driver=podman --memory=6144 --cpus=4
 argo-dojo/
 ├── app/
 │   └── deployment.yaml          # Session 2: Demo-App
-├── sonarqube/
-│   ├── namespace.yaml           # Wave 0: Namespace
+├── grafana/
 │   ├── values.yaml              # Custom Helm Values
-│   └── application.yaml         # Argo CD Application
+│   └── application.yaml         # Argo CD Application (Multi-Source)
 ├── sync-waves-demo/
 │   ├── wave-0-configmap.yaml    # ConfigMap zuerst
 │   ├── wave-1-secret.yaml       # Secret danach
@@ -51,179 +47,93 @@ argo-dojo/
     └── application.yaml         # Argo App für Hooks-Demo
 ```
 
-## Teil 1: SonarQube mit Helm deployen
+## Teil 1: Grafana mit Helm deployen
 
 ### Schritt 1: Helm Repository in Argo CD registrieren
-
-**Problem mit Corporate Proxy/Zscaler?**
-
-Wenn du hinter einem Corporate Proxy (z.B. Zscaler) bist, kann Helm/Argo CD das TLS-Zertifikat nicht verifizieren.
-
-**Lösung A: TLS-Verifizierung deaktivieren (für lokales Dojo)**
 
 ```powershell
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: sonarqube-helm-repo
+  name: grafana-helm-repo
   namespace: argocd
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: helm
-  name: sonarqube
-  url: https://SonarSource.github.io/helm-chart-sonarqube
-  tlsClientConfig: |
-    insecure: true
+  name: grafana
+  url: https://grafana.github.io/helm-charts
 EOF
 ```
 
-**Lösung B: Zscaler-Zertifikat ins Argo CD injizieren (produktive Umgebung)**
+> **Zscaler/Proxy-Problem?** `insecure: true` in `stringData` ergänzen (siehe ZSCALER-FIX.md).
 
-```powershell
-# 1. Zscaler Root CA exportieren (aus Browser)
-# Chrome: Einstellungen → Datenschutz → Zertifikate verwalten → Vertrauenswürdige Stammzertifizierungsstellen
-# Exportiere als .crt Datei (z.B. zscaler-root.crt)
-
-# 2. ConfigMap erstellen
-kubectl create configmap zscaler-ca -n argocd --from-file=ca.crt=zscaler-root.crt
-
-# 3. Argo CD Repo Server Deployment patchen
-kubectl patch deployment argocd-repo-server -n argocd --patch '
-spec:
-  template:
-    spec:
-      volumes:
-        - name: custom-ca
-          configMap:
-            name: zscaler-ca
-      containers:
-        - name: repo-server
-          volumeMounts:
-            - name: custom-ca
-              mountPath: /etc/ssl/certs/zscaler.crt
-              subPath: ca.crt
-          env:
-            - name: SSL_CERT_FILE
-              value: /etc/ssl/certs/zscaler.crt
-'
-
-# 4. Pods neu starten
-kubectl rollout restart deployment argocd-repo-server -n argocd
-```
-
-**Verifizieren:**
-
-```powershell
-# In der UI: Settings → Repositories → sollte "sonarqube" Repo zeigen
-# Status sollte "Successful" sein
-
-# Oder per CLI:
-kubectl get secret -n argocd sonarqube-helm-repo
-```
+Verifizieren in der UI: Settings → Repositories → sollte "grafana" Repo zeigen.
 
 ### Schritt 2: Custom Values verstehen
 
-Die Datei `sonarqube/values.yaml` enthält optimierte Settings für lokales Setup:
+Die Datei `grafana/values.yaml` enthält optimierte Settings für lokales Setup:
 
 **Key-Highlights:**
-- `replicaCount: 1` (für Dojo ausreichend)
-- `persistence.enabled: false` (ephemeral OK für Demo)
-- `postgresql.enabled: true` (embedded DB)
+- `replicas: 1` (für Dojo ausreichend)
+- `persistence.enabled: false` (kein PVC nötig)
+- `adminUser/adminPassword` direkt gesetzt (NUR für Demo!)
 - `service.type: NodePort` (für lokalen Zugriff)
-- Reduzierte Resource Requests/Limits
+- Datasource und Dashboard-Provider vorkonfiguriert
 
 ### Schritt 3: Application deployen
 
 **Voraussetzung: Argo CD 2.6+ für Multi-Source Support**
 
-Die `sonarqube/application.yaml` nutzt Multi-Source, um Chart und Values zu kombinieren:
-- **Source 1:** Helm Chart von SonarSource
+Die `grafana/application.yaml` nutzt Multi-Source:
+- **Source 1:** Helm Chart von grafana.github.io
 - **Source 2:** Custom Values aus diesem Git Repo
 
 ```powershell
-# Prüfe Argo CD Version
-kubectl get deployment argocd-server -n argocd -o jsonpath='{.spec.template.spec.containers[0].image}'
-# Sollte mindestens v2.6.0 sein
-
 # Application deployen
-kubectl apply -f sonarqube/application.yaml
+kubectl apply -f grafana/application.yaml
 ```
 
 **Falls Argo CD < 2.6: Inline Values nutzen**
-
-Wenn Multi-Source nicht verfügbar ist, nutze diese Alternative mit inline Values:
-
-**Falls Argo CD < 2.6: Inline Values nutzen**
-
-Wenn Multi-Source nicht verfügbar ist, nutze diese Alternative mit inline Values:
 
 ```powershell
 kubectl apply -f - <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: sonarqube
+  name: grafana
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: https://SonarSource.github.io/helm-chart-sonarqube
-    chart: sonarqube
-    targetRevision: 10.6.0+3033
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    targetRevision: 8.5.1
     helm:
-      releaseName: sonarqube
+      releaseName: grafana
       values: |
-        replicaCount: 1
-        image:
-          repository: sonarqube
-          tag: "10.4.1-community"
-        resources:
-          requests:
-            cpu: 400m
-            memory: 1.5Gi
-          limits:
-            cpu: 800m
-            memory: 2Gi
-        persistence:
-          enabled: false
-        postgresql:
-          enabled: true
-          image:
-            registry: docker.io
-            repository: bitnami/postgresql
-            tag: 16.2.0-debian-12-r18
-          persistence:
-            enabled: false
-          resources:
-            requests:
-              cpu: 100m
-              memory: 200Mi
-            limits:
-              cpu: 200m
-              memory: 512Mi
-          auth:
-            postgresPassword: sonarpass
-            username: sonar
-            password: sonarpass
-            database: sonarqube
+        replicas: 1
         service:
           type: NodePort
-        initContainers:
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
-        account:
-          adminPassword: admin
-        jvmOpts: "-Xmx1024m -Xms512m"
+          port: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        persistence:
+          enabled: false
+        adminUser: admin
+        adminPassword: dojo-admin
+        env:
+          GF_AUTH_ANONYMOUS_ENABLED: "true"
+          GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
   destination:
     server: https://kubernetes.default.svc
-    namespace: sonarqube
+    namespace: grafana
   syncPolicy:
     automated:
       prune: true
@@ -237,28 +147,21 @@ EOF
 
 ```powershell
 # Application Status
-kubectl get application -n argocd sonarqube
+kubectl get application -n argocd grafana
 
-# Pods (dauert 2-3 Minuten bis Running)
-kubectl get pods -n sonarqube -w
-
-# Logs bei Problemen
-kubectl logs -n sonarqube -l app=sonarqube --tail=50 -f
+# Pods (startet in unter 1 Minute!)
+kubectl get pods -n grafana -w
 ```
 
-### Schritt 5: SonarQube UI öffnen
+### Schritt 5: Grafana UI öffnen
 
 ```powershell
-# NodePort-URL holen
-minikube service sonarqube-sonarqube -n sonarqube --url
-
-# Oder Port-Forward
-kubectl port-forward -n sonarqube svc/sonarqube-sonarqube 9000:9000
+# Port-Forward
+kubectl port-forward -n grafana svc/grafana 3000:80
 ```
 
-Browser: `http://localhost:9000`
-- Login: `admin` / `admin`
-- Beim ersten Login: Passwort ändern zu `admin123` (oder beliebig)
+Browser: `http://localhost:3000`
+- Login: `admin` / `dojo-admin`
 
 ## Teil 2: Sync Waves demonstrieren
 
@@ -332,16 +235,15 @@ kubectl apply -f hooks-demo/application.yaml
 ### Hook-Execution beobachten
 
 ```powershell
-# Manuellen Sync triggern (um Hooks zu sehen)
 # In Argo CD UI: App "hooks-demo" → Sync Button
 
 # Hook-Jobs anschauen
-kubectl get jobs -n default | Select-String -Pattern "presync|postsync"
+kubectl get jobs -n default
 
 # Logs vom PreSync Hook
 kubectl logs job/presync-backup -n default
 
-# Logs vom PostSync Hook  
+# Logs vom PostSync Hook
 kubectl logs job/postsync-smoketest -n default
 ```
 
@@ -364,19 +266,19 @@ annotations:
 
 ## Teil 4: GitOps-Flow mit Helm Values
 
-### Demo: SonarQube Replicas ändern
+### Demo: Grafana Replicas ändern
 
 ```yaml
-# In sonarqube/values.yaml
-replicaCount: 2  # vorher: 1
+# In grafana/values.yaml
+replicas: 2  # vorher: 1
 ```
 
 ```powershell
-git commit -am "Scale SonarQube to 2 replicas"
+git commit -am "Scale Grafana to 2 replicas"
 git push
 
 # Argo CD erkennt Change (nach max. 3 Min)
-kubectl get pods -n sonarqube -w
+kubectl get pods -n grafana -w
 # → Zweiter Pod startet automatisch
 ```
 
@@ -384,13 +286,13 @@ kubectl get pods -n sonarqube -w
 
 ```powershell
 # Manuell im Cluster ändern
-kubectl scale deployment sonarqube-sonarqube -n sonarqube --replicas=3
+kubectl scale deployment grafana -n grafana --replicas=3
 
 # Argo CD zeigt "OutOfSync"
-kubectl get application -n argocd sonarqube
+kubectl get application -n argocd grafana
 
 # Self-Heal aktiviert → nach ~1 Min zurück auf 2 Replicas
-kubectl get pods -n sonarqube -w
+kubectl get pods -n grafana -w
 ```
 
 ## Cheat Sheet: Wichtige Befehle
@@ -400,13 +302,10 @@ kubectl get pods -n sonarqube -w
 kubectl get applications -n argocd
 
 # App-Status details
-kubectl describe application sonarqube -n argocd
-
-# Manuell Sync triggern (via kubectl)
-kubectl patch application sonarqube -n argocd --type merge -p '{\"operation\":{\"sync\":{}}}'
+kubectl describe application grafana -n argocd
 
 # App löschen (inkl. Ressourcen im Cluster)
-kubectl delete application sonarqube -n argocd
+kubectl delete application grafana -n argocd
 
 # Helm Repos in Argo CD auflisten
 kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=repository
@@ -419,45 +318,17 @@ kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.pas
 
 | Problem | Lösung |
 |---------|--------|
-| **Helm Repo nicht erreichbar (Zscaler/Proxy)** | `insecure: true` in Repository Secret setzen (siehe Schritt 1, Lösung A) |
-| **x509: certificate signed by unknown authority** | Corporate Proxy bricht TLS auf → Lösung A oder B aus Schritt 1 nutzen |
-| **PostgreSQL Image nicht gefunden (manifest unknown)** | SonarQube Chart nutzt alte PostgreSQL-Version → Image-Version in `values.yaml` überschreiben (siehe unten) |
-| SonarQube Pod bleibt in `Pending` | Zu wenig RAM → `minikube delete` und mit `--memory=6144` neu starten |
-| PostgreSQL Pod crasht | Init dauert lange → `kubectl logs -n sonarqube <pod>` checken, 2-3 Min warten |
-| Helm Chart nicht gefunden | Repo registriert? `kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=repository` prüfen |
-| **Repository Status "Connection Failed"** | TLS-Problem → `insecure: true` setzen (siehe Schritt 1) |
+| **Helm Repo nicht erreichbar (Zscaler/Proxy)** | `insecure: true` in Repository Secret setzen (siehe ZSCALER-FIX.md) |
+| **x509: certificate signed by unknown authority** | Corporate Proxy bricht TLS auf → `insecure: true` oder Zertifikat injizieren |
+| Grafana Pod bleibt in `Pending` | Zu wenig RAM → `minikube start --memory=4096` |
+| Helm Chart nicht gefunden | Repo registriert? `kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=repository` |
 | Sync Waves ignoriert | Annotations müssen Strings sein: `"0"` nicht `0` |
 | Hook-Job bleibt in `Error` | Logs prüfen: `kubectl logs job/<job-name>`, dann Hook löschen und neu deployen |
-| OutOfSync obwohl nichts geändert | Helm Chart hat `generateName` o.ä. → Ignorieren oder Chart pinnen |
 | Values aus Git werden nicht geladen | Multi-Source Feature prüfen (Argo CD >= 2.6) oder Inline-Values nutzen |
-
-### Fix für PostgreSQL Image-Problem
-
-Wenn du den Fehler `manifest for bitnami/postgresql:... not found` siehst, nutze ein aktuelles PostgreSQL-Image in `sonarqube/values.yaml`:
-
-```yaml
-postgresql:
-  enabled: true
-  image:
-    registry: docker.io
-    repository: bitnami/postgresql
-    tag: 16.2.0-debian-12-r18  # Aktuelles, verfügbares Image
-  persistence:
-    enabled: false
-  # ... rest der Config
-```
-
-**Hinweis:** Bitnami Images ändern sich häufig. Bei Problemen aktuelles Tag prüfen:
-```powershell
-# Verfügbare Tags anzeigen (via Browser oder API)
-# https://hub.docker.com/r/bitnami/postgresql/tags
-```
-
-Dann committen und pushen - Argo CD synct automatisch.
 
 ## Best Practices
 
-1. **Chart-Versionen pinnen**: z. B. `targetRevision: 10.6.0+3033` statt `latest` — konkrete Version vor Nutzung prüfen, z. B. mit `helm search repo sonarqube/sonarqube --versions`
+1. **Chart-Versionen pinnen**: `targetRevision: 8.5.1` statt `latest`
 2. **Waves sinnvoll nummerieren**: 0, 10, 20, 30 statt 0, 1, 2, 3 (Platz für Zwischenschritte)
 3. **Secrets nie in values.yaml**: Sealed Secrets oder External Secrets nutzen (Session 4)
 4. **Resource Limits setzen**: Cluster-Überlastung vermeiden
@@ -466,8 +337,9 @@ Dann committen und pushen - Argo CD synct automatisch.
 ## Key Learnings
 
 ✅ **Helm + Argo CD = Best of Both Worlds**
-- Vendor-Charts nutzen (SonarQube, PostgreSQL, ...)
+- Vendor-Charts nutzen (Grafana, Prometheus, ...)
 - Eigene Konfiguration in Git
+- Chart vom Vendor, Values von uns
 
 ✅ **Sync Waves = Deklarative Dependencies**
 - Keine `kubectl wait` oder Init-Container-Hacks
@@ -488,5 +360,3 @@ Dann committen und pushen - Argo CD synct automatisch.
 - **Multi-Environment**: dev/staging/prod mit Kustomize Overlays
 - **App-of-Apps Pattern**: Parent-App deployt Child-Apps
 - **Webhooks**: Instant-Sync statt 3-Min-Polling
-- **Progressive Delivery**: Canary/Blue-Green mit Argo Rollouts
-

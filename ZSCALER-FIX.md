@@ -9,30 +9,28 @@ Fehlermeldung: `x509: certificate signed by unknown authority`
 
 ## ⚡ Schnellste Lösung (Empfohlen für Dojo)
 
-TLS-Verifizierung deaktivieren:
+TLS-Verifizierung deaktivieren – `insecure: true` im Repository Secret ergänzen:
 
 ```powershell
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: sonarqube-helm-repo
+  name: grafana-helm-repo
   namespace: argocd
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: helm
-  name: sonarqube
-  url: https://SonarSource.github.io/helm-chart-sonarqube
-  tlsClientConfig: |
-    insecure: true
+  name: grafana
+  url: https://grafana.github.io/helm-charts
+  insecure: "true"
 EOF
 ```
 
-Dann in Argo CD UI prüfen: Settings → Repositories → "sonarqube" sollte Status "Successful" haben.
+Dann in Argo CD UI prüfen: Settings → Repositories → "grafana" sollte Status "Successful" haben.
 
 ---
-
 
 ## 🔒 Produktive Lösung: Zscaler-Zertifikat injizieren
 
@@ -45,12 +43,6 @@ Dann in Argo CD UI prüfen: Settings → Repositories → "sonarqube" sollte Sta
 4. Finde "Zscaler Root CA" (oder ähnlich)
 5. Exportieren → Base-64-codiert X.509 (.CER)
 6. Speichern als `zscaler-root.crt`
-
-**Firefox:**
-1. Einstellungen → Datenschutz & Sicherheit → Zertifikate
-2. Zertifikate anzeigen → Zertifizierungsstellen
-3. "ZscalerRootCertificate" (oder ähnlich)
-4. Exportieren → Speichern als `zscaler-root.crt`
 
 ### Schritt 2: In Argo CD injizieren
 
@@ -65,9 +57,7 @@ kubectl patch deployment argocd-repo-server -n argocd --type json -p='[
     "path": "/spec/template/spec/volumes/-",
     "value": {
       "name": "custom-ca",
-      "configMap": {
-        "name": "zscaler-ca"
-      }
+      "configMap": { "name": "zscaler-ca" }
     }
   },
   {
@@ -91,29 +81,7 @@ kubectl patch deployment argocd-repo-server -n argocd --type json -p='[
 
 # Pods neu starten
 kubectl rollout restart deployment argocd-repo-server -n argocd
-
-# Warten bis bereit
 kubectl rollout status deployment argocd-repo-server -n argocd
-```
-
-### Schritt 3: Repository normal registrieren
-
-Jetzt OHNE `insecure: true`:
-
-```powershell
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: sonarqube-helm-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  type: helm
-  name: sonarqube
-  url: https://SonarSource.github.io/helm-chart-sonarqube
-EOF
 ```
 
 ---
@@ -121,13 +89,7 @@ EOF
 ## ✅ Verifizierung
 
 ```powershell
-# Repo-Status prüfen
-kubectl get secret -n argocd sonarqube-helm-repo
-
-# In Argo CD UI:
-# Settings → Repositories → "sonarqube" sollte grün sein
-
-# Logs prüfen bei Problemen
+kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=repository
 kubectl logs -n argocd deployment/argocd-repo-server --tail=50
 ```
 
@@ -136,5 +98,4 @@ kubectl logs -n argocd deployment/argocd-repo-server --tail=50
 ## 📝 Empfehlung
 
 - **Für Dojo/Demo:** Schnellste Lösung (`insecure: true`)
-- **Für Produktion:** Produktive Lösung (Zertifikat injizieren)
-
+- **Für Produktion:** Zertifikat injizieren
