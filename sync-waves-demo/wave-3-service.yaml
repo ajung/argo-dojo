@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: wave-demo-app
+  namespace: default
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    app: wave-demo
+    demo: sync-waves
+spec:
+  type: ClusterIP
+  selector:
+    app: wave-demo
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+

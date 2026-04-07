@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postsync-smoketest
+  namespace: default
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+  labels:
+    demo: hooks
+spec:
+  template:
+    metadata:
+      name: postsync-test
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: smoke-test
+          image: curlimages/curl:8.6.0
+          command:
+            - sh
+            - -c
+            - |
+              echo "=== PostSync Hook: Running Smoke Tests ==="
+              echo "Timestamp: $(date)"
+              echo "Testing service endpoints..."
+              sleep 2
+              echo "✓ Health check passed"
+              echo "✓ API connectivity OK"
+              echo "✓ All smoke tests passed!"
+

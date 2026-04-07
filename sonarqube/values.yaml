@@ -1,0 +1,58 @@
+replicaCount: 1
+
+image:
+  repository: sonarqube
+  tag: "10.4.1-community"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 400m
+    memory: 1.5Gi
+  limits:
+    cpu: 800m
+    memory: 2Gi
+
+persistence:
+  enabled: false
+
+postgresql:
+  enabled: true
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 200Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+  auth:
+    postgresPassword: sonarpass
+    username: sonar
+    password: sonarpass
+    database: sonarqube
+
+service:
+  type: NodePort
+  externalPort: 9000
+  internalPort: 9000
+
+initContainers:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+account:
+  adminPassword: "admin"
+  currentAdminPassword: "admin"
+
+jvmOpts: "-Xmx1024m -Xms512m"
+
+plugins:
+  install: []
+

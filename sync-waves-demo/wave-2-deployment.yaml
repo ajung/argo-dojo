@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wave-demo-app
+  namespace: default
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app: wave-demo
+    demo: sync-waves
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: wave-demo
+  template:
+    metadata:
+      labels:
+        app: wave-demo
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          # Demo note: this nginx container does not use the database-related
+          # environment variables below at runtime. They are included only to
+          # demonstrate ConfigMap/Secret wiring in the sync-waves example.
+          env:
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: database.host
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: database.port
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: db-username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: db-password
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+

@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sync-waves-demo
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ajung/argo-dojo.git
+    targetRevision: HEAD
+    path: sync-waves-demo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+

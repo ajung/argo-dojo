@@ -13,258 +13,160 @@
 
 ---
 
-## Session 1: Grundsetup – Podman & Minikube
+## 📚 Session-Übersicht
 
-### Ziel
+Jede Session ist als eigene Markdown-Datei dokumentiert mit vollständigen Schritt-für-Schritt-Anleitungen:
 
-Aufsetzen einer lokalen Kubernetes-Umgebung mit Podman und Minikube als Basis für weitere Sessions.
+### [Session 1: Grundsetup – Podman & Minikube](SESSION1.md)
+**Ziel:** Lokale Kubernetes-Umgebung aufsetzen
+- Podman Installation & Konfiguration
+- Minikube mit Podman-Driver
+- kubectl Setup
+- Troubleshooting-Tipps aus der Praxis
 
-### Voraussetzungen
+👉 **[Zur vollständigen Session 1 Dokumentation →](SESSION1.md)**
 
-- Windows 10/11
-- Administratorrechte
-- PowerShell
+---
 
-### Installation Podman
+### [Session 2: ArgoCD & GitOps](SESSION2.md)
+**Ziel:** GitOps-Prinzipien live erleben
+- Argo CD Installation
+- Erste Application deployen
+- Automated Sync & Self-Heal
+- Drift Detection demonstrieren
+
+👉 **[Zur vollständigen Session 2 Dokumentation →](SESSION2.md)**
+
+---
+
+### [Session 3: Helm Charts & Sync-Mechanismen](SESSION3.md)
+**Ziel:** Fortgeschrittene Argo CD Features
+- Helm Integration (SonarQube)
+- Sync Waves für Deployment-Reihenfolge
+- Sync Hooks (PreSync/PostSync)
+- GitOps mit externen Charts
+
+👉 **[Zur vollständigen Session 3 Dokumentation →](SESSION3.md)**
+
+Siehe auch: **[Session 3 Quickstart Guide](SESSION3-QUICKSTART.md)** für schnellen Einstieg
+
+---
+
+## 🚀 Quick Start
+
+### Erste Session starten
 
 ```powershell
+# 1. Podman installieren
 winget install -e --id RedHat.Podman
-```
 
-Nach der Installation: System neu starten oder PowerShell neu öffnen.
+# 2. Minikube installieren
+winget install -e --id Kubernetes.minikube
 
-### Podman initialisieren
+# 3. kubectl installieren
+winget install -e --id Kubernetes.kubectl
 
-```powershell
+# 4. Cluster starten
 podman machine init
 podman machine start
-podman info
-```
-
-### Installation Minikube
-
-```powershell
-winget install -e --id Kubernetes.minikube
-```
-
-### Minikube starten (mit Podman als Treiber)
-
-```powershell
 minikube start --driver=podman
 ```
 
-### Installation kubectl
+Vollständige Anleitung: [SESSION1.md](SESSION1.md)
+
+### Repo klonen
 
 ```powershell
-winget install -e --id Kubernetes.kubectl
+git clone https://github.com/ajung/argo-dojo.git
+cd argo-dojo
 ```
-
-### Cluster prüfen
-
-```powershell
-kubectl get nodes
-```
-
-### Dashboard starten (optional)
-
-```powershell
-minikube dashboard
-```
-
-### Hinweise
-
-- Podman läuft in einer VM (`podman machine`) unter Windows
-- Minikube nutzt Podman als Container-Runtime
-- Falls Probleme auftreten: `minikube delete` und neu starten
 
 ---
 
-### Erfahrungen aus der Praxis (Teilnehmer-Feedback)
+## 📁 Repo-Struktur
 
-#### Variante: `--container-runtime=containerd` + Rootless-Konfiguration
-
-Bei manchen Setups schlägt `minikube start --driver=podman` ohne weitere Flags fehl.
-Lösung: Podman auf **rootless** konfigurieren und dann mit `--container-runtime=containerd` starten:
-
-```powershell
-minikube start --driver=podman --container-runtime=containerd
 ```
-
-#### Variante: Einfach nochmal probieren / `minikube delete`
-
-Bei einigen Teilnehmern hat `minikube start --driver=podman` beim ersten Versuch nicht funktioniert.
-Ein `minikube delete` gefolgt von einem erneuten `minikube start --driver=podman` hat das Problem gelöst – ohne weitere Anpassungen.
-
-#### Variante: Ressourcen der Podman-Machine erhöhen
-
-Bei Problemen nach einer Neu-Installation von Minikube kann es helfen, die Podman-Machine mit mehr Ressourcen neu aufzusetzen:
-
-```powershell
-podman machine rm
-podman machine init --cpus 2 --memory 4096 --disk-size 60
-podman machine start
-minikube delete
-minikube start --driver=podman
+argo-dojo/
+├── README.md                    # Diese Übersicht
+├── SESSION1.md                  # Session 1: Podman & Minikube Setup
+├── SESSION2.md                  # Session 2: ArgoCD & GitOps
+├── SESSION3.md                  # Session 3: Helm & Sync-Mechanismen
+├── SESSION3-QUICKSTART.md       # Schnelleinstieg Session 3
+├── AGENTS.md                    # Guide für AI Coding Agents
+│
+├── app/                         # Session 2: Demo-App
+│   └── deployment.yaml
+│
+├── sonarqube/                   # Session 3: Helm Integration
+│   ├── namespace.yaml
+│   ├── values.yaml
+│   └── application.yaml
+│
+├── sync-waves-demo/             # Session 3: Sync Waves Demo
+│   ├── wave-0-configmap.yaml
+│   ├── wave-1-secret.yaml
+│   ├── wave-2-deployment.yaml
+│   ├── wave-3-service.yaml
+│   └── application.yaml
+│
+└── hooks-demo/                  # Session 3: Sync Hooks Demo
+    ├── presync-backup.yaml
+    ├── deployment.yaml
+    ├── postsync-test.yaml
+    └── application.yaml
 ```
-
-#### Fallback: Minikube über WSL installieren
-
-Falls Minikube unter Windows gar nicht erkannt wird (der Befehl bleibt unbekannt), kann Minikube direkt **in der WSL** installiert und gestartet werden.
-Das hat bei einigen Teilnehmern letztendlich funktioniert, nachdem die native Windows-Installation nicht zum Ziel geführt hat.
 
 ---
 
-## Session 2: ArgoCD & GitOps
+## 🎯 Lernziele pro Session
 
-### Ziel
+### Session 1
+✅ Lokale Kubernetes-Umgebung funktioniert  
+✅ Podman als Container-Runtime verstanden  
+✅ kubectl-Grundlagen beherrschen
 
-ArgoCD lokal installieren und das GitOps-Prinzip live erleben: eine Änderung im Git-Repo wird automatisch in den Cluster übernommen.
+### Session 2
+✅ GitOps-Prinzipien verstanden  
+✅ Argo CD Application deployen können  
+✅ Automated Sync & Self-Heal erleben  
+✅ Drift Detection & Reconciliation verstehen
 
-### GitOps – Drei Kernsätze
+### Session 3
+✅ Helm Charts mit Argo CD nutzen  
+✅ Sync Waves für Dependencies einsetzen  
+✅ Pre/Post-Deployment Hooks implementieren  
+✅ Multi-Source Applications verstehen
 
-1. **Git ist die einzige Wahrheit.** Was im Repo steht, läuft im Cluster – nicht mehr, nicht weniger.
-2. **ArgoCD pullt, niemand pusht in den Cluster.** Kein `kubectl apply` von Hand im Betrieb.
-3. **Drift wird automatisch erkannt und geheilt.** Jemand patcht manuell? ArgoCD rollt es zurück.
-
-### Minikube starten
-
-```bash
-minikube start --memory=4096
-```
-
-### ArgoCD installieren
-
-> ⚠️ Das Standard-`kubectl apply` schlägt mit folgendem Fehler fehl:
-> `The CustomResourceDefinition "applicationsets.argoproj.io" is invalid: metadata.annotations: Too long: may not be more than 262144 bytes`
->
-> **Fix:** `--server-side` verwenden – die CRDs sind zu groß für client-side apply.
-
-```bash
-kubectl create namespace argocd
-
-kubectl apply -n argocd \
-  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml \
-  --server-side
-```
-
-### Warten bis alles läuft
-
-```bash
-kubectl wait --for=condition=available deployment \
-  --all -n argocd --timeout=180s
-```
-
-### UI zugänglich machen
-
-In einem separaten Terminal-Tab laufen lassen:
-
-```bash
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-```
-
-### Initial-Passwort holen
-
-```bash
-kubectl get secret argocd-initial-admin-secret \
-  -n argocd -o jsonpath="{.data.password}" | base64 -d
-```
-
-**Login:** `https://localhost:8080` · Benutzer: `admin` · Passwort: siehe oben
-
-### Demo-Repo
-
-**Repo:** https://github.com/ajung/argo-dojo.git
-
-```
-repo/
-└── app/
-    └── deployment.yaml   # nginx, replicas: 1
-```
-
-#### deployment.yaml
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: demo-app
-  labels:
-    app: demo-app
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: demo-app
-  template:
-    metadata:
-      labels:
-        app: demo-app
-    spec:
-      containers:
-        - name: nginx
-          image: nginx:1.25
-          ports:
-            - containerPort: 80
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: demo-app
-spec:
-  selector:
-    app: demo-app
-  ports:
-    - port: 80
-      targetPort: 80
-```
 
-### App in ArgoCD registrieren
+## 🛠 Voraussetzungen
 
-```bash
-kubectl apply -f - <<EOF
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: demo-app
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/ajung/argo-dojo.git
-    targetRevision: HEAD
-    path: app
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-EOF
-```
+- **OS:** Windows 10/11 (primär), alternativ Linux/macOS
+- **RAM:** Minimum 8 GB (16 GB empfohlen für Session 3)
+- **Disk:** ~20 GB freier Speicher
+- **Tools:** PowerShell, Git
+- **Rechte:** Lokale Admin-Rechte für Installation
 
-### GitOps in Aktion
+---
 
-`replicas: 1` → `replicas: 3` im Repo ändern, committen und pushen. Dann beobachten:
+## 📖 Weiterführende Ressourcen
 
-```bash
-kubectl get pods -w
-```
+- [Argo CD Dokumentation](https://argo-cd.readthedocs.io/)
+- [GitOps Principles](https://www.gitops.tech/)
+- [Minikube Docs](https://minikube.sigs.k8s.io/docs/)
+- [Podman Docs](https://docs.podman.io/)
+- [Helm Documentation](https://helm.sh/docs/)
 
-ArgoCD erkennt den Drift und gleicht den Cluster-Zustand automatisch ab.
+---
 
-### Ausblick – mögliche nächste Sessions
+## 🤝 Beiträge & Feedback
 
-- Multi-Environment-Setup (dev/staging/prod im selben Repo)
-- Secrets-Management mit ArgoCD (Sealed Secrets, External Secrets)
-- App-of-Apps-Pattern für größere Setups
-- Rollback via `git revert`
+Dieses Dojo lebt von euren Erfahrungen! Wenn ihr:
+- Probleme löst, die nicht dokumentiert sind
+- Verbesserungsvorschläge habt
+- Neue Session-Ideen einbringen möchtet
 
-### Troubleshooting
+→ Pull Request oder Issue erstellen!
 
-| Problem | Lösung |
-|---------|--------|
-| CRD-Fehler: `annotations: Too long` | `--server-side` Flag beim `kubectl apply` verwenden |
-| UI nicht erreichbar | Port-Forward läuft noch? `kubectl port-forward svc/argocd-server -n argocd 8080:443` |
-| Passwort-Befehl gibt leere Zeile | Secret noch nicht bereit – kurz warten, dann wiederholen |
-| ArgoCD synct nicht automatisch | Default-Polling-Intervall: 3 Minuten – oder manuell „Sync" in der UI klicken |
+---
+
