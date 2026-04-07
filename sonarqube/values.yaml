@@ -18,19 +18,14 @@ persistence:
 
 postgresql:
   enabled: true
-  image:
-    registry: docker.io
-    repository: postgres
-    tag: 16-alpine
+  global:
+    imageRegistry: artifactory.ct.ocp.tc.corp/docker-remote
+  securityContext:
+    enabled: false
+  containerSecurityContext:
+    enabled: false
   persistence:
     enabled: false
-  primary:
-    initdb:
-      scripts:
-        init.sql: |
-          CREATE USER sonar WITH PASSWORD 'sonarpass';
-          CREATE DATABASE sonarqube OWNER sonar;
-          GRANT ALL PRIVILEGES ON DATABASE sonarqube TO sonar;
   resources:
     requests:
       cpu: 100m
