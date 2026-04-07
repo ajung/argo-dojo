@@ -320,6 +320,7 @@ kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.pas
 |---------|--------|
 | **Helm Repo nicht erreichbar (Zscaler/Proxy)** | `insecure: true` in Repository Secret setzen (siehe ZSCALER-FIX.md) |
 | **x509: certificate signed by unknown authority** | Corporate Proxy bricht TLS auf → `insecure: true` oder Zertifikat injizieren |
+| **DNS Timeout in Minikube (WSL)** | CoreDNS auf Google DNS (8.8.8.8) umstellen → siehe DNS-Fix in [SESSION1.md](SESSION1.md#dns-problem-in-minikube-wsl--podman-driver) |
 | Grafana Pod bleibt in `Pending` | Zu wenig RAM → `minikube start --memory=4096` |
 | Helm Chart nicht gefunden | Repo registriert? `kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=repository` |
 | Sync Waves ignoriert | Annotations müssen Strings sein: `"0"` nicht `0` |

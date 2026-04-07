@@ -97,3 +97,91 @@ minikube start --driver=podman
 Falls Minikube unter Windows gar nicht erkannt wird (der Befehl bleibt unbekannt), kann Minikube direkt **in der WSL** installiert und gestartet werden.
 Das hat bei einigen Teilnehmern letztendlich funktioniert, nachdem die native Windows-Installation nicht zum Ziel geführt hat.
 
+---
+
+### DNS-Problem in Minikube (WSL / Podman-Driver)
+
+**Symptom:** ArgoCD (oder andere Pods) können keine externen Hosts erreichen – Timeout-Fehler wie:
+```
+Get "https://github.com/...": context deadline exceeded
+```
+
+**Ursache:** DNS-Auflösung in Minikube funktioniert nicht korrekt (bekanntes Problem mit Podman-Driver in WSL).
+
+**Lösung – 5 Schritte:**
+
+#### 1. DNS im Minikube-Host setzen
+
+```powershell
+wsl bash -c "minikube ssh 'echo nameserver 8.8.8.8 | sudo tee /etc/resolv.conf && echo nameserver 8.8.4.4 | sudo tee -a /etc/resolv.conf'"
+```
+
+#### 2. CoreDNS ConfigMap erstellen
+
+```powershell
+wsl bash -c "cat > /tmp/coredns-config-fixed.yaml << 'YAML'
+apiVersion: v1
+data:
+  Corefile: |
+    .:53 {
+        log
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        hosts {
+           192.168.49.1 host.minikube.internal
+           fallthrough
+        }
+        forward . 8.8.8.8 8.8.4.4 {
+           max_concurrent 1000
+        }
+        cache 30 {
+           disable success cluster.local
+           disable denial cluster.local
+        }
+        loop
+        reload
+        loadbalance
+    }
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+YAML
+"
+```
+
+#### 3. CoreDNS ConfigMap anwenden
+
+```powershell
+wsl minikube kubectl -- apply -f /tmp/coredns-config-fixed.yaml
+```
+
+#### 4. CoreDNS neu starten
+
+```powershell
+wsl minikube kubectl -- rollout restart deployment coredns -n kube-system
+```
+
+#### 5. ArgoCD Pods neu starten
+
+```powershell
+wsl minikube kubectl -- delete pods --all -n argocd
+```
+
+**Verifizierung** (nach ca. 1 Minute):
+
+```powershell
+wsl minikube kubectl -- get pods -n argocd
+```
+
+> **Hinweis:** Diese Änderung ist permanent (überlebt Minikube-Restarts). CoreDNS verwendet dann direkt Google DNS (8.8.8.8, 8.8.4.4).
+
