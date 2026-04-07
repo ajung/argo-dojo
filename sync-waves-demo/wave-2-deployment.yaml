@@ -4,7 +4,7 @@ metadata:
   name: wave-demo-app
   namespace: default
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "0"
   labels:
     app: wave-demo
     demo: sync-waves
