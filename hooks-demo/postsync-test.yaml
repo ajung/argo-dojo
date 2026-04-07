@@ -25,6 +25,7 @@ spec:
               echo "Timestamp: $(date)"
               echo "Testing service endpoints..."
               sleep 2
+              exit 1
               echo "✓ Health check passed"
               echo "✓ API connectivity OK"
               echo "✓ All smoke tests passed!"
