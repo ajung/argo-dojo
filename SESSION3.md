@@ -193,7 +193,7 @@ spec:
           image:
             registry: docker.io
             repository: bitnami/postgresql
-            tag: 15.6.0-debian-12-r7
+            tag: 16.2.0-debian-12-r18
           persistence:
             enabled: false
           resources:
@@ -433,7 +433,7 @@ kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.pas
 
 ### Fix für PostgreSQL Image-Problem
 
-Wenn du den Fehler `manifest for bitnami/postgresql:11.14.0-debian-10-r22 not found` siehst, überschreibe die PostgreSQL-Version in `sonarqube/values.yaml`:
+Wenn du den Fehler `manifest for bitnami/postgresql:... not found` siehst, nutze ein aktuelles PostgreSQL-Image in `sonarqube/values.yaml`:
 
 ```yaml
 postgresql:
@@ -441,13 +441,19 @@ postgresql:
   image:
     registry: docker.io
     repository: bitnami/postgresql
-    tag: 15.6.0-debian-12-r7  # Aktuelle Version
+    tag: 16.2.0-debian-12-r18  # Aktuelles, verfügbares Image
   persistence:
     enabled: false
   # ... rest der Config
 ```
 
-Dann committen und Argo CD synct automatisch.
+**Hinweis:** Bitnami Images ändern sich häufig. Bei Problemen aktuelles Tag prüfen:
+```powershell
+# Verfügbare Tags anzeigen (via Browser oder API)
+# https://hub.docker.com/r/bitnami/postgresql/tags
+```
+
+Dann committen und pushen - Argo CD synct automatisch.
 
 ## Best Practices
 
