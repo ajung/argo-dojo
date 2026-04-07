@@ -8,19 +8,19 @@ metadata:
 spec:
   project: default
 
-  source:
-    repoURL: https://SonarSource.github.io/helm-chart-sonarqube
-    chart: sonarqube
-    targetRevision: 10.6.0+3033
-    helm:
-      releaseName: sonarqube
-      # `values.yaml` here is not fetched from the external Helm chart itself.
-      # For an external chart repo like `https://SonarSource.github.io/helm-chart-sonarqube`,
-      # Argo CD must read this file from the Git repository in a multi-source setup.
-      # This relative path is therefore intended to refer to the Git-tracked values file,
-      # not a file bundled inside the upstream chart.
-      valueFiles:
-        - values.yaml
+  # Multi-Source Setup: Chart von Helm Repo + Values aus Git Repo
+  sources:
+    - repoURL: https://SonarSource.github.io/helm-chart-sonarqube
+      chart: sonarqube
+      targetRevision: 10.6.0+3033
+      helm:
+        releaseName: sonarqube
+        valueFiles:
+          - $values/sonarqube/values.yaml
+
+    - repoURL: https://github.com/ajung/argo-dojo.git
+      targetRevision: HEAD
+      ref: values
 
   destination:
     server: https://kubernetes.default.svc

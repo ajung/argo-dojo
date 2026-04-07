@@ -55,6 +55,12 @@ argo-dojo/
 
 ### Schritt 1: Helm Repository in Argo CD registrieren
 
+**Problem mit Corporate Proxy/Zscaler?**
+
+Wenn du hinter einem Corporate Proxy (z.B. Zscaler) bist, kann Helm/Argo CD das TLS-Zertifikat nicht verifizieren.
+
+**Lösung A: TLS-Verifizierung deaktivieren (für lokales Dojo)**
+
 ```powershell
 kubectl apply -f - <<EOF
 apiVersion: v1
@@ -68,10 +74,54 @@ stringData:
   type: helm
   name: sonarqube
   url: https://SonarSource.github.io/helm-chart-sonarqube
+  tlsClientConfig: |
+    insecure: true
 EOF
 ```
 
-Verifizieren in der UI: Settings → Repositories → sollte "sonarqube" Repo zeigen
+**Lösung B: Zscaler-Zertifikat ins Argo CD injizieren (produktive Umgebung)**
+
+```powershell
+# 1. Zscaler Root CA exportieren (aus Browser)
+# Chrome: Einstellungen → Datenschutz → Zertifikate verwalten → Vertrauenswürdige Stammzertifizierungsstellen
+# Exportiere als .crt Datei (z.B. zscaler-root.crt)
+
+# 2. ConfigMap erstellen
+kubectl create configmap zscaler-ca -n argocd --from-file=ca.crt=zscaler-root.crt
+
+# 3. Argo CD Repo Server Deployment patchen
+kubectl patch deployment argocd-repo-server -n argocd --patch '
+spec:
+  template:
+    spec:
+      volumes:
+        - name: custom-ca
+          configMap:
+            name: zscaler-ca
+      containers:
+        - name: repo-server
+          volumeMounts:
+            - name: custom-ca
+              mountPath: /etc/ssl/certs/zscaler.crt
+              subPath: ca.crt
+          env:
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/zscaler.crt
+'
+
+# 4. Pods neu starten
+kubectl rollout restart deployment argocd-repo-server -n argocd
+```
+
+**Verifizieren:**
+
+```powershell
+# In der UI: Settings → Repositories → sollte "sonarqube" Repo zeigen
+# Status sollte "Successful" sein
+
+# Oder per CLI:
+kubectl get secret -n argocd sonarqube-helm-repo
+```
 
 ### Schritt 2: Custom Values verstehen
 
@@ -86,17 +136,28 @@ Die Datei `sonarqube/values.yaml` enthält optimierte Settings für lokales Setu
 
 ### Schritt 3: Application deployen
 
-```powershell
-# Alle Dateien sind bereits im Repo
-git add sonarqube/ sync-waves-demo/ hooks-demo/
-git commit -m "Add Session 3: Helm Charts, Sync Waves & Hooks"
-git push
+**Voraussetzung: Argo CD 2.6+ für Multi-Source Support**
 
-# SonarQube Application deployen
+Die `sonarqube/application.yaml` nutzt Multi-Source, um Chart und Values zu kombinieren:
+- **Source 1:** Helm Chart von SonarSource
+- **Source 2:** Custom Values aus diesem Git Repo
+
+```powershell
+# Prüfe Argo CD Version
+kubectl get deployment argocd-server -n argocd -o jsonpath='{.spec.template.spec.containers[0].image}'
+# Sollte mindestens v2.6.0 sein
+
+# Application deployen
 kubectl apply -f sonarqube/application.yaml
 ```
 
-**Alternative: Inline Values (falls Argo CD < 2.6)**
+**Falls Argo CD < 2.6: Inline Values nutzen**
+
+Wenn Multi-Source nicht verfügbar ist, nutze diese Alternative mit inline Values:
+
+**Falls Argo CD < 2.6: Inline Values nutzen**
+
+Wenn Multi-Source nicht verfügbar ist, nutze diese Alternative mit inline Values:
 
 ```powershell
 kubectl apply -f - <<EOF
@@ -115,20 +176,51 @@ spec:
       releaseName: sonarqube
       values: |
         replicaCount: 1
+        image:
+          repository: sonarqube
+          tag: "10.4.1-community"
         resources:
           requests:
             cpu: 400m
             memory: 1.5Gi
+          limits:
+            cpu: 800m
+            memory: 2Gi
         persistence:
           enabled: false
         postgresql:
           enabled: true
+          image:
+            registry: docker.io
+            repository: bitnami/postgresql
+            tag: 15.6.0-debian-12-r7
           persistence:
             enabled: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+          auth:
+            postgresPassword: sonarpass
+            username: sonar
+            password: sonarpass
+            database: sonarqube
         service:
           type: NodePort
+        initContainers:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
         account:
           adminPassword: admin
+        jvmOpts: "-Xmx1024m -Xms512m"
   destination:
     server: https://kubernetes.default.svc
     namespace: sonarqube
@@ -137,7 +229,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      CreateNamespace=true
+      - CreateNamespace=true
 EOF
 ```
 
@@ -327,13 +419,35 @@ kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.pas
 
 | Problem | Lösung |
 |---------|--------|
+| **Helm Repo nicht erreichbar (Zscaler/Proxy)** | `insecure: true` in Repository Secret setzen (siehe Schritt 1, Lösung A) |
+| **x509: certificate signed by unknown authority** | Corporate Proxy bricht TLS auf → Lösung A oder B aus Schritt 1 nutzen |
+| **PostgreSQL Image nicht gefunden (manifest unknown)** | SonarQube Chart nutzt alte PostgreSQL-Version → Image-Version in `values.yaml` überschreiben (siehe unten) |
 | SonarQube Pod bleibt in `Pending` | Zu wenig RAM → `minikube delete` und mit `--memory=6144` neu starten |
 | PostgreSQL Pod crasht | Init dauert lange → `kubectl logs -n sonarqube <pod>` checken, 2-3 Min warten |
 | Helm Chart nicht gefunden | Repo registriert? `kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=repository` prüfen |
+| **Repository Status "Connection Failed"** | TLS-Problem → `insecure: true` setzen (siehe Schritt 1) |
 | Sync Waves ignoriert | Annotations müssen Strings sein: `"0"` nicht `0` |
 | Hook-Job bleibt in `Error` | Logs prüfen: `kubectl logs job/<job-name>`, dann Hook löschen und neu deployen |
 | OutOfSync obwohl nichts geändert | Helm Chart hat `generateName` o.ä. → Ignorieren oder Chart pinnen |
 | Values aus Git werden nicht geladen | Multi-Source Feature prüfen (Argo CD >= 2.6) oder Inline-Values nutzen |
+
+### Fix für PostgreSQL Image-Problem
+
+Wenn du den Fehler `manifest for bitnami/postgresql:11.14.0-debian-10-r22 not found` siehst, überschreibe die PostgreSQL-Version in `sonarqube/values.yaml`:
+
+```yaml
+postgresql:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/postgresql
+    tag: 15.6.0-debian-12-r7  # Aktuelle Version
+  persistence:
+    enabled: false
+  # ... rest der Config
+```
+
+Dann committen und Argo CD synct automatisch.
 
 ## Best Practices
 

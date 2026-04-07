@@ -18,6 +18,10 @@ persistence:
 
 postgresql:
   enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/postgresql
+    tag: 15.6.0-debian-12-r7
   persistence:
     enabled: false
   resources:
