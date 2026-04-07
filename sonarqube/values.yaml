@@ -20,10 +20,17 @@ postgresql:
   enabled: true
   image:
     registry: docker.io
-    repository: bitnami/postgresql
-    tag: 16.2.0-debian-12-r18
+    repository: postgres
+    tag: 16-alpine
   persistence:
     enabled: false
+  primary:
+    initdb:
+      scripts:
+        init.sql: |
+          CREATE USER sonar WITH PASSWORD 'sonarpass';
+          CREATE DATABASE sonarqube OWNER sonar;
+          GRANT ALL PRIVILEGES ON DATABASE sonarqube TO sonar;
   resources:
     requests:
       cpu: 100m
