@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: private-gitlab-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # >>> URL zu deinem privaten GitLab Repo anpassen <<<
+    repoURL: https://gitlab.zt.msg.team/gbl/msg-technologie/cicd/argocd/sonarqube.git
+    targetRevision: HEAD
+    path: manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

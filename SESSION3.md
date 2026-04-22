@@ -357,7 +357,9 @@ kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.pas
 
 ## Ausblick Session 4
 
-- **Secrets Management**: Sealed Secrets oder External Secrets Operator
-- **Multi-Environment**: dev/staging/prod mit Kustomize Overlays
-- **App-of-Apps Pattern**: Parent-App deployt Child-Apps
-- **Webhooks**: Instant-Sync statt 3-Min-Polling
+- **Private Repos**: GitLab mit Access Token und Self-Signed Cert anbinden
+- **Self-Signed Certificates**: Custom CA in Argo CD konfigurieren
+- **Token-Auth**: GitLab Project Access Tokens sicher einbinden
+- **Enterprise-Hürden**: TLS/Auth-Troubleshooting meistern
+
+👉 **[Weiter zu Session 4 →](SESSION4.md)**

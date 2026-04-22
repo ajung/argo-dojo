@@ -52,6 +52,17 @@ Siehe auch: **[Session 3 Quickstart Guide](SESSION3-QUICKSTART.md)** für schnel
 
 ---
 
+### [Session 4: Privates GitLab Repo – Self-Signed Certs & Access Tokens](SESSION4.md)
+**Ziel:** Enterprise-typische Git-Anbindung meistern
+- Privates GitLab Repo in Argo CD einbinden
+- Self-Signed Certificates vertrauen (Custom CA)
+- GitLab Access Tokens sicher konfigurieren
+- Troubleshooting: TLS- und Auth-Fehler debuggen
+
+👉 **[Zur vollständigen Session 4 Dokumentation →](SESSION4.md)**
+
+---
+
 ## 🚀 Quick Start
 
 ### Erste Session starten
@@ -92,6 +103,7 @@ argo-dojo/
 ├── SESSION2.md                  # Session 2: ArgoCD & GitOps
 ├── SESSION3.md                  # Session 3: Helm & Sync-Mechanismen
 ├── SESSION3-QUICKSTART.md       # Schnelleinstieg Session 3
+├── SESSION4.md                  # Session 4: Privates GitLab Repo
 ├── AGENTS.md                    # Guide für AI Coding Agents
 │
 ├── app/                         # Session 2: Demo-App
@@ -113,6 +125,13 @@ argo-dojo/
     ├── deployment.yaml
     ├── postsync-test.yaml
     └── application.yaml
+
+└── private-gitlab-demo/         # Session 4: Privates GitLab Repo
+    ├── repo-secret.yaml
+    ├── tls-configmap.yaml
+    ├── application.yaml
+    └── example-app/
+        └── deployment.yaml
 ```
 
 ---
@@ -136,11 +155,13 @@ argo-dojo/
 ✅ Pre/Post-Deployment Hooks implementieren  
 ✅ Multi-Source Applications verstehen
 
----
+### Session 4
+✅ Private Git Repos mit Argo CD verbinden  
+✅ Self-Signed Certificates handhaben  
+✅ Token-basierte Authentifizierung einrichten  
+✅ TLS/Auth-Troubleshooting beherrschen
 
 ## 🛠 Voraussetzungen
-
-- **OS:** Windows 10/11 (primär), alternativ Linux/macOS
 - **RAM:** Minimum 8 GB (16 GB empfohlen für Session 3)
 - **Disk:** ~20 GB freier Speicher
 - **Tools:** PowerShell, Git

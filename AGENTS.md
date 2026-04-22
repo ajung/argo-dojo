@@ -6,17 +6,22 @@
 
 ## Repo-Karte (entscheidend für Agenten)
 - `README.md`: Übersicht mit Links zu allen Sessions.
-- `SESSION1.md` / `SESSION2.md` / `SESSION3.md`: Vollständige Session-Dokumentationen.
+- `SESSION1.md` / `SESSION2.md` / `SESSION3.md` / `SESSION4.md`: Vollständige Session-Dokumentationen.
+- `SESSION3-QUICKSTART.md`: Schnelleinstieg für Session 3.
+- `ZSCALER-FIX.md`: Workaround für Corporate-Proxy/Zscaler x509-Fehler (`insecure: true` oder Zertifikat-Injection).
 - `app/deployment.yaml`: Session 2 Demo-App (Deployment + Service `demo-app`).
 - `grafana/`: Session 3 Helm-Integration (values.yaml + application.yaml für Grafana Chart, kein DB nötig).
+- `grafana/repo-secret.yaml`: Helm-Repo-Secret für Argo CD (mit `insecure: "true"` für Proxy-Umgebungen).
 - `sync-waves-demo/`: Session 3 Sync-Waves-Beispiele (wave-0 bis wave-3, zeigt Deployment-Reihenfolge).
 - `hooks-demo/`: Session 3 Sync-Hooks-Beispiele (PreSync/PostSync Jobs).
+- `private-gitlab-demo/`: Session 4 Private GitLab Repo (repo-secret, tls-configmap, application für privates Repo mit Self-Signed Cert + Access Token).
 - Es gibt aktuell **keine** Build-, Test- oder CI-Dateien im Repo; Änderungen sind primär YAML/GitOps-bezogen.
 
 ## Big Picture Architektur
 - **Source of Truth:** Git-Stand im Repo.
 - **Reconcile-Komponente:** Argo CD (`Application` in Namespace `argocd`) pullt `path: app` aus `targetRevision: HEAD`.
-- **Runtime-Ziel:** Kubernetes `default` Namespace; App ist `demo-app` mit NGINX (`nginx:1.25`).
+- **Runtime-Ziel:** Kubernetes `default` Namespace; App ist `demo-app` mit NGINX (`nginx:1.25`). Grafana läuft im Namespace `grafana`.
+- **Multi-Source (Argo CD ≥ 2.6):** `grafana/application.yaml` nutzt Multi-Source – Source 1: Helm Chart, Source 2: Values aus Git.
 - Erwartetes Verhalten laut README: Drift wird durch `syncPolicy.automated.prune/selfHeal` automatisch korrigiert.
 
 ## Kritische Workflows
@@ -39,9 +44,12 @@
 - Container-Laufzeit lokal über Podman (`podman machine` unter Windows).
 - GitOps-Controller: Argo CD (CRDs + `argocd` Namespace + UI/Port-Forward).
 - Upstream-Manifestquelle in der Doku: `argoproj/argo-cd` Install-Manifest (Raw GitHub URL).
+- Helm Repo für Grafana: `https://grafana.github.io/helm-charts` (registriert als Secret in `argocd` Namespace, siehe `grafana/repo-secret.yaml`).
 
 ## Agenten-Checkliste vor Änderungen
 - Prüfen, ob die Änderung in `app/` GitOps-kompatibel und deklarativ ist.
 - Bei Deployment-Änderungen Selektor/Labels/Ports auf Konsistenz mit Service prüfen.
 - README-Schritte als operative Wahrheit behandeln, besonders Troubleshooting-Hinweise.
+- Sync Wave Annotations müssen **Strings** sein: `"0"` nicht `0`.
 - Wenn Argo-CD-`Application` geändert werden soll: `source.path` bleibt auf `app`, sofern nicht explizit anders gefordert.
+- Bei Zscaler/Proxy-Fehlern (`x509: certificate signed by unknown authority`): siehe `ZSCALER-FIX.md`.

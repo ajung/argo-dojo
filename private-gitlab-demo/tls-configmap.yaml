@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-tls-certs-cm
+  namespace: argocd
+data:
+  # Key = GitLab Hostname, Value = PEM-codiertes CA-Zertifikat
+  # >>> Hostname und Zertifikat anpassen <<<
+  gitlab.zt.msg.team: |
+    -----BEGIN CERTIFICATE-----
+    HIER DAS CA-ZERTIFIKAT EINFUEGEN
+    (Base64-codierter PEM-Block)
+    -----END CERTIFICATE-----
+
